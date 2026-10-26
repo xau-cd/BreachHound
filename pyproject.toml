@@ -1,0 +1,60 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "breachhound"
+dynamic = ["version"]
+description = "Outil professionnel d'investigation DFIR/SOC : analyse de logs et d'artefacts, corrélation, scoring de risque, rapports."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+    "click>=8.1",
+    "rich>=13.0",
+    "jinja2>=3.1",
+    "requests>=2.31",
+    "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "ruff>=0.5", "mypy>=1.10", "types-requests"]
+
+[project.scripts]
+breachhound = "breachhound.cli.main:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "breachhound.version.__version__" }
+
+[tool.setuptools.packages.find]
+include = ["breachhound*"]
+
+[tool.setuptools.package-data]
+"breachhound.reports" = ["templates/*.j2"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [".", "tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 130
+target-version = "py310"
+extend-exclude = ["examples", "tests/fixtures"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "B", "UP"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["breachhound"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["I", "B011"]
+
+[tool.mypy]
+python_version = "3.10"
+files = ["breachhound"]
+warn_unused_ignores = false
+warn_redundant_casts = true
+check_untyped_defs = true
+ignore_missing_imports = true

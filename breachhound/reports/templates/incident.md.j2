@@ -1,0 +1,141 @@
+# BreachHound - Incident Report
+
+- **Report ID:** `{{ r.metadata.id }}`
+- **Generated (UTC):** {{ r.metadata.finished_at | time }} - BreachHound {{ r.metadata.tool_version }}
+- **Target:** `{{ r.metadata.target }}`
+- **Investigation goal:** {{ r.metadata.goal | cell }}
+
+## Executive Summary
+
+| Field | Value |
+|---|---|
+| Severity | **{{ r.executive_summary.severity }}** |
+| Risk score | {{ r.executive_summary.score }}/100 |
+| Confidence | {{ r.executive_summary.confidence_level }} ({{ r.executive_summary.confidence }}) |
+| Probable vector (deterministic) | {{ r.executive_summary.probable_vector | cell }} |
+| IP(s) involved | {{ r.executive_summary.ips | join(", ") or "none" }} |
+| Findings | {{ r.executive_summary.findings_total }} (CRITICAL {{ r.executive_summary.severity_counts.CRITICAL }}, HIGH {{ r.executive_summary.severity_counts.HIGH }}, MEDIUM {{ r.executive_summary.severity_counts.MEDIUM }}, LOW {{ r.executive_summary.severity_counts.LOW }}) |
+| Correlated incidents | {{ r.executive_summary.incidents_total }} |
+| LLM analysis | {{ r.executive_summary.llm_status }} |
+
+{{ r.executive_summary.summary }}
+
+{% if r.executive_summary.probable_vector_llm_unverified %}
+> LLM-suggested vector (**unverified**, not a fact): {{ r.executive_summary.probable_vector_llm_unverified | cell }}
+
+{% endif %}
+## Timeline
+
+| Time (UTC) | Severity | Category | Source | IP | Event |
+|---|---|---|---|---|---|
+{% for e in timeline %}
+| {{ e.timestamp | time }}{{ " (approx.)" if e.approximate else "" }} | {{ e.severity }} | {{ e.category }} | {{ e.source }} | {{ e.ip or "-" }} | {{ e.description | cell }} |
+{% endfor %}
+{% if timeline_hidden %}
+
+_{{ timeline_hidden }} more event(s) are available in the JSON report._
+{% endif %}
+
+## Findings
+
+{% for f in top_findings %}
+### {{ f.id }} - {{ f.title | cell }}
+
+- **Severity:** {{ f.severity }} - **Category:** {{ f.category }} - **Confidence:** {{ f.confidence_level }} ({{ "%.2f" | format(f.confidence) }})
+- **Source:** `{{ f.source_file or "-" }}`{% if f.source_line %} line {{ f.source_line }}{% endif %} - **Time:** {{ f.timestamp | time }} - **IP:** {{ f.ip or "-" }}
+- **Description:** {{ f.description | cell }}
+{% for ev in f.evidence[:3] %}
+
+```text
+{{ ev.excerpt }}
+```
+{% endfor %}
+
+{% endfor %}
+{% if findings_hidden %}
+_{{ findings_hidden }} lower-priority finding(s) omitted here; see the JSON report._
+
+{% endif %}
+## Evidence
+
+### Analysed sources (chain of custody)
+
+| File | Type | SHA-256 | Size |
+|---|---|---|---|
+{% for s in r.evidence.sources %}
+| `{{ s.path | cell }}` | {{ s.kind }} | `{{ s.sha256 or "n/a" }}` | {{ s.size }} |
+{% endfor %}
+
+{% if manifest %}
+### Artifact manifest ({{ r.evidence.artifact_manifest | length }} file(s), first {{ manifest | length }} shown)
+
+| Path | SHA-256 | Size | mtime |
+|---|---|---|---|
+{% for m in manifest %}
+| `{{ m.path | cell }}` | `{{ m.sha256 or "n/a" }}` | {{ m.size }} | {{ m.mtime | time }} |
+{% endfor %}
+{% if manifest_hidden %}
+
+_{{ manifest_hidden }} more file(s) in the JSON report._
+{% endif %}
+
+{% endif %}
+## Root Cause Analysis
+
+### Observed facts (deterministic)
+
+{% for fact in r.root_cause_analysis.observed_facts %}
+- {{ fact | cell }}
+{% else %}
+- No finding.
+{% endfor %}
+
+### Hypotheses from deterministic correlation
+
+_Inferred from shared IP/file/time. Causality is not proven._
+
+{% for h in r.root_cause_analysis.deterministic_hypotheses %}
+- [{{ h.confidence }}] {{ h.statement | cell }} (supporting findings: {{ h.supporting_finding_ids[:6] | join(", ") or "none" }})
+{% else %}
+- None.
+{% endfor %}
+
+### LLM analysis (interpretation, not evidence)
+
+{% if r.root_cause_analysis.llm.status == "ok" %}
+Provider: {{ r.root_cause_analysis.llm.provider }} / {{ r.root_cause_analysis.llm.model }}
+
+{{ r.root_cause_analysis.llm.summary | cell }}
+
+{% for h in r.root_cause_analysis.llm.hypotheses %}
+- **{{ "SUPPORTED" if h.evidence_status == "supported" else "UNVERIFIED SPECULATION" }}** [{{ h.confidence }}] {{ h.statement | cell }}{% if h.supporting_finding_ids %} (findings: {{ h.supporting_finding_ids | join(", ") }}){% endif %}
+
+{% endfor %}
+{% for g in r.root_cause_analysis.llm.gaps %}
+- Gap: {{ g | cell }}
+{% endfor %}
+{% else %}
+**The LLM analysis could not be performed** ({{ r.root_cause_analysis.llm.error or "not requested" }}). This report only contains deterministic results.
+{% endif %}
+
+## Risk score
+
+Score **{{ r.risk.score }}/100** ({{ r.risk.level }}).
+
+| Factor | Points | Detail |
+|---|---|---|
+{% for f in r.risk.factors %}
+| {{ f.name | cell }} | {{ f.points }} | {{ f.detail | cell }} |
+{% endfor %}
+
+## Recommendations
+
+{% for rec in r.recommendations %}
+1. {{ rec.text | cell }} _({{ rec.origin }})_
+{% endfor %}
+
+## Limitations
+
+{% for l in r.limitations %}
+- {{ l | cell }}
+{% endfor %}
